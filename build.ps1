@@ -13,24 +13,26 @@ Param(
 
 END
 {
-
-    write-verbose -message "ModuleFilename = $moduleFileName"
-    Set-location -Path "$PSScriptRoot" -ErrorAction SilentlyContinue
-
     $F = $MyInvocation.InvocationName
-    Write-Verbose -Message "$F - Starting build, getting files"
-
-    if(Get-Module -Name IdentityManager)
+    Write-Verbose -Message "$F - Starting build"
+    
+    write-verbose -message "$f -  ModuleFilename = $moduleFileName"
+    
+    $ModuleName = $ModuleFileName.Split('.') | Select-Object -first 1
+    Write-Verbose -Message "$f -  ModuleName is [$ModuleName]"
+    
+    Write-Verbose -Message "Setting location to $PSScriptRoot"
+    Set-location -Path "$PSScriptRoot" -ErrorAction SilentlyContinue
+    
+    if(Get-Module -Name $ModuleName)
     {
         Write-Verbose "$F -  Removing FIMautomation snapIn and IdentityManager module"
-        Remove-FIMsnapin -Verbose
-        Remove-Module IdentityManager -Verbose:$false
+        Remove-Module -Name $modulename -ErrorActoion SilentlyContinue
+        
     }
     
     $fileList = Get-ChildItem -Filter .\functions\*.ps1 | where name -NotLike "*Tests*"
-
-    #$ModuleName = (Get-ChildItem -Path $ModuleFileName -ErrorAction SilentlyContinue).BaseName
-    $ModuleName = $ModuleFileName.Split('.') | Select-Object -first 1
+    
     Write-Verbose -Message "$f -  Modulename is $ModuleName"
 
     if([string]::IsNullOrEmpty($moduleName))
@@ -65,20 +67,22 @@ END
     [string]$ModuleFile = ""
     foreach($file in $fileList)
     {
+        Write-Verbose -Message "$f -  Adding function $($file.Name)"
         $filecontent = Get-Content -Path $file.FullName -Raw -Encoding UTF8
         $filecontent = "$filecontent`n`n"
         $ModuleFile += $filecontent
     }
+    
+    Set-Content -Path ".\$ModuleName.psm1" -Value $ModuleFile -Encoding UTF8 -Force
+    
     [System.Version]$ver = $null
 
     if((Test-Path -Path $moduleFileName -ErrorAction SilentlyContinue) -eq $true)
     {
         Write-Verbose -Message "$f -  Getting version info"
         Import-Module -Name ".\$ModuleName.psd1" -Verbose:$false
-        $ver = (Get-Module $Modulename).Version
-        Remove-FIMsnapin
-        Remove-Module $ModuleName -Verbose:$false
-        #Remove-PSSnapin -Name FIMautomation -ErrorAction SilentlyContinue
+        $ver = (Get-Module $Modulename).Version        
+        Remove-Module $ModuleName -Verbose:$false        
         Write-Verbose -Message "$f -  Removing previous version of $ModuleFileName"
         Remove-Item -Path $ModuleFileName
     }
@@ -186,20 +190,20 @@ END
     Write-Verbose -Message "$f -  Creating manifestfile"
 
     $newModuleManifest = @{
-        Path = "$PSScriptRoot\$ManifestName"
+        Path = "$ModuleFileName"
         Author = "Tore Grøneng @toregroneng tore@firstpoint.no"
         Copyright = "(c) 2015 Tore Grøneng @toregroneng tore@firstpoint.no"
         CompanyName = "Firstpoint AS"
         ModuleVersion = $ver.ToString()
         FunctionsToExport = $ExportedFunctions
-        RootModule = "$ModuleFileName"
+        RootModule = "$ModuleName.psm1"
         Description = "$description"
         PowerShellVersion = "4.0"
         ProjectUri = "https://github.com/torgro/IdentityManager"
         FormatsToProcess = $FormatsToProcess.ToArray()
     }
 
-    New-ModuleManifest @newModuleManifest -NestedModules @("FIMmodule\FIMmodule.psd1")
+    New-ModuleManifest @newModuleManifest
 
     Write-Verbose -Message "$f -  Reading back content to convert to UTF8 (content management tracking)"
     Set-Content -Path $ManifestName -Value (Get-Content -Path $ManifestName -Raw) -Encoding UTF8

@@ -6,33 +6,11 @@ Param(
     [alias("PSComputerName")]
     [string]$ComputerName
     ,
-    [Microsoft.Management.Infrastructure.CimSession]$Session
+    [Microsoft.Management.Infrastructure.CimSession[]]$Session
 )
-DynamicParam {    
-    $GetCimInstance = @{
-        Namespace = "root\MicrosoftIdentityIntegrationServer"
-        ClassName = "MIIS_ManagementAgent"
-    }
-    $Dictionary = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
-    $Agents = Foreach($agent in (Get-CimInstance @GetCimInstance -Verbose:$false | Select-Object -ExpandProperty Name))
-    {
-        "'$agent'"
-    }
-    
-    $NewDynParam = @{
-        Name = "Name"
-        Alias = "AgentName"
-        Mandatory = $false
-        ValueFromPipelineByPropertyName = $true
-        ValueFromPipeline = $true
-        DPDictionary = $Dictionary
-    }
-    if($Agents)
-    {
-        $null = $NewDynParam.Add("ValidateSet",$Agents)
-    }
-    New-DynamicParam @NewDynParam -TypeAsString DynParamQuotedString
-    return $Dictionary
+DynamicParam 
+{        
+     return Get-DynamicParam -ParameterName "Name" -ParameterAlias "AgentName" -ValueFromPipelineByPropertyName $true -ValueFromPipeline $true
 }
 
 BEGIN
@@ -62,8 +40,9 @@ PROCESS
     
     if($agentName)
     {
-        Write-Verbose -Message "$f -  Looking for agent with name [$agentName]"        
-        Get-CimInstance @GetCimInstance -Verbose:$false -CimSession| Where-Object Name -Like $AgentString     
+        Write-Verbose -Message "$f -  Looking for agent with name [$agentName]"
+        $AgentString = $agentName.TrimStart('"').TrimStart("'").TrimEnd('"').TrimEnd("'")
+        Get-CimInstance @GetCimInstance -Verbose:$false | Where-Object Name -Like $AgentString     
     }
     else
     {

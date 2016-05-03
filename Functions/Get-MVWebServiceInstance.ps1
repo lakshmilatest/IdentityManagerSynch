@@ -26,7 +26,7 @@ END
             break
         }
     }
-    $fimBasePath = Get-FIMBaseFolder
+    $fimBasePath = Get-IMBaseFolder
     $fimUIshellPath = "$fimBasePath\UIShell\"
     $propertySheetDll = "PropertySheetBase.dll"
     $assemblyFullPath = "$fimUIshellPath$PropertySheetDll"

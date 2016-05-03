@@ -46,6 +46,7 @@ Param(
     [int]$TotalLimit = [int]::MaxValue
 )
 DynamicParam {
+    <#
     $Dictionary = New-Object System.Management.Automation.RuntimeDefinedParameterDictionary
 
     $NewDynParam = @{
@@ -70,13 +71,42 @@ DynamicParam {
         $PSBoundParameters.Add("Hidden",$HiddenHash)
     }    
     
-    New-DynamicParam @NewDynParam
-
-    $DynRunProfiles = @((Get-FIMRunProfile).Keys)
-    New-DynamicParam -Name RunProfile -Type String -ValidateSet $DynRunProfiles -Mandatory -Position 1 -DPDictionary $Dictionary
+    New-DynamicParam @NewDynParam #>
+    $GetDynamicParam = @{
+        ParameterName = "Name"
+        ParameterAlias = "AgentName"
+        ValueFromPipelineByPropertyName = $true
+        ValueFromPipeline = $true
+        ValidateScript = {$null = Set-Variable -Name HiddenAgentName -Value $_ -Scope Global ; $true}
+    }
+    
+    $Dictionary = Get-DynamicParam @GetDynamicParam  #-ParameterName "Name" -ParameterAlias "AgentName" -ValueFromPipelineByPropertyName $true -ValueFromPipeline $true
+    
+    $runProfiles = foreach($profile in (Get-IMAagentRunProfile -Name (Get-IMManagementAgent | Select-Object -first 1 -ExpandProperty Name)))
+    {
+        $Profile
+    }
+    
+    if(Get-Variable -Scope Global | Where-Object Name -eq "HiddenAgentName")
+    {
+        $runProfiles = Get-IMAagentRunProfile -Name (Get-Variable -Name HiddenNumberVariable -Scope Global).Value        
+    }
+    
+    $GetDynamicParam.ParameterName = "RunProfile"
+    $GetDynamicParam.ParameterAlias = "RunProfileName"
+    $GetDynamicParam.ValueFromPipelineByPropertyName = $false
+    $GetDynamicParam.ValueFromPipeline = $true
+    if($GetDynamicParam.ContainsKey("ValidateScript"))
+    {
+        $null = $GetDynamicParam.Remove("ValidateScript")
+    }
+    
+    return Get-DynamicParam @GetDynamicParam -Dictionary $Dictionary
+    #$DynRunProfiles = @((Get-FIMRunProfile).Keys)
+    #New-DynamicParam -Name RunProfile -Type String -ValidateSet $runProfiles -Mandatory -Position 1 -DPDictionary $Dictionary
     
     #$null = out-file -FilePath C:\temp\tore\bound.txt -Append -InputObject "agent name $($PSBoundParameters.AgentName)"
-    $Dictionary
+    
 }
 
 BEGIN

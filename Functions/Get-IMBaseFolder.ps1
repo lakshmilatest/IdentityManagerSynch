@@ -1,4 +1,4 @@
-﻿function Get-FIMBaseFolder
+﻿function Get-IMBaseFolder
 {
 [cmdletbinding()]
 Param()
